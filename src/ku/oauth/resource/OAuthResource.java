@@ -33,17 +33,17 @@ import org.apache.oltu.oauth2.common.message.types.GrantType;
 @Path("")
 public class OAuthResource {
 
+	private static final String client_id = "KEY";
+	private static final String client_secret = "SECRET";
+
 	@Context
 	UriInfo uriInfo;
 	
 	private OAuthClient client;
 	private OAuthClientRequest request;
 	private OAuthClientResponse response;
-	private String REDIRECT_URI = UriBuilder.fromUri(uriInfo.getBaseUri())
-			.path("oauth2callback").build().toString();
 	private String ACCESS_TOKEN;
-
-
+	
 	@GET
 	@Produces(MediaType.APPLICATION_JSON)
 	public Response index() {
@@ -56,11 +56,12 @@ public class OAuthResource {
 		try {
 			request = OAuthClientRequest
 					.authorizationProvider(OAuthProviderType.GOOGLE)
-					.setClientId("195639712959-mav09j1h8glutoqbhubnknkdcn9slvca.apps.googleusercontent.com")
+					.setClientId(client_id)
 					.setResponseType("code")
 					.setScope(
 							"email")
-					.setRedirectURI( REDIRECT_URI
+					.setRedirectURI( UriBuilder.fromUri(uriInfo.getBaseUri())
+							.path("oauth2callback").build().toString()
 							)
 					.buildQueryMessage();
 			
@@ -78,16 +79,17 @@ public class OAuthResource {
 	public Response authorize(@QueryParam("code") String code,
 			@QueryParam("state") String state) {
 		// path to redirect after authorization
-		final URI uri = uriInfo.getBaseUriBuilder().path("").build();
+		// final URI uri = uriInfo.getBaseUriBuilder().path("").build();
 
 		try {
 			// Request to exchange code for access token and id token
 			request = OAuthClientRequest
 					.tokenProvider(OAuthProviderType.GOOGLE)
 					.setCode(code)
-					.setClientId("195639712959-mav09j1h8glutoqbhubnknkdcn9slvca.apps.googleusercontent.com")
-					.setClientSecret("nt9fPMyv26sxzWUS0MX_IPa5")
-					.setRedirectURI( REDIRECT_URI
+					.setClientId(client_id)
+					.setClientSecret(client_secret)
+					.setRedirectURI( UriBuilder.fromUri(uriInfo.getBaseUri())
+							.path("oauth2callback").build().toString()
 							)
 					.setGrantType(GrantType.AUTHORIZATION_CODE)
 					.buildBodyMessage();
@@ -98,16 +100,13 @@ public class OAuthResource {
 			
 			// Get the access token from the response
 			ACCESS_TOKEN = ((OAuthJSONAccessTokenResponse) response).getAccessToken();
-
-			
-			System.out.println(((OAuthResourceResponse) getClientResource()).getBody());
 			
 			// Add code to notify application of authenticated user
 		} catch (OAuthProblemException | OAuthSystemException e) {
 			e.printStackTrace();
 		} 
 
-		return Response.seeOther(uri).build();
+		return Response.ok().build();
 	}
 	
 	public OAuthClientResponse getClientResource() {
@@ -115,6 +114,16 @@ public class OAuthResource {
 			request  = new OAuthBearerClientRequest("https://www.googleapis.com/plus/v1/people/me").setAccessToken(ACCESS_TOKEN).buildQueryMessage();
 			return client.resource(request, OAuth.HttpMethod.GET, OAuthResourceResponse.class);
 		} catch (OAuthSystemException | OAuthProblemException e) {
+			e.printStackTrace();
+		}
+		return null;
+	}
+	
+	public OAuthClientResponse logout() {
+		try {
+			request = new OAuthBearerClientRequest("https://accounts.google.com/logout").setAccessToken(ACCESS_TOKEN).buildQueryMessage();
+			return client.resource(request, OAuth.HttpMethod.GET, OAuthResourceResponse.class);
+			} catch (OAuthSystemException | OAuthProblemException e) {
 			e.printStackTrace();
 		}
 		return null;
